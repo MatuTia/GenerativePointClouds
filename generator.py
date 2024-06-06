@@ -39,7 +39,7 @@ class MapBlock(torch.nn.Module):
         return x
 
 
-class PTBlock(torch.nn.Module):
+class PTBlockAdaINBefore(torch.nn.Module):
 
     def __init__(self, features: list[int], nodes: int, depth: int, degrees: list[int], branching: bool,
                  activation: bool):
@@ -50,7 +50,79 @@ class PTBlock(torch.nn.Module):
         self.activation = activation
         self.branching = branching
 
-        super(PTBlock, self).__init__()
+        super(PTBlockAdaINBefore, self).__init__()
+
+        self.weights = torch.nn.ModuleList()
+        for i in range(depth + 1):
+            self.weights.append(torch.nn.Linear(features[i], self.out_features, bias=False))
+
+        if branching:
+            self.branch = torch.nn.Parameter(torch.empty(self.nodes, self.in_features, self.in_features * self.degree))
+
+        support = 10
+        self.support = torch.nn.Sequential(
+            torch.nn.Linear(self.in_features, self.in_features * support, bias=False),
+            torch.nn.Linear(self.in_features * support, self.out_features, bias=False),
+        )
+
+        self.bias = torch.nn.Parameter(torch.empty(1, self.degree, self.out_features))
+        self.sigma = torch.nn.LeakyReLU(0.2)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self.branch, gain=torch.nn.init.calculate_gain('relu'))
+
+        out_bound = 1 / sqrt(self.out_features)
+        torch.nn.init.uniform_(self.bias, -out_bound, out_bound)
+
+    def forward(self, tree: list[torch.Tensor], style: torch.Tensor) -> list[torch.Tensor]:
+        batch_size = tree[0].size(0)
+
+        assert tree[-1].size() == style.size()
+
+        #  AdaIN
+        var_x, mean_x = torch.var_mean(tree[-1], dim=1, unbiased=False, keepdim=True)
+        var_style, mean_style = torch.var_mean(style, dim=1, unbiased=False, keepdim=True)
+
+        std_x, std_style = torch.sqrt(var_x + 1e-5), torch.sqrt(var_style + 1e-5)
+
+        normalized_x = (tree[-1] - mean_x) / std_x
+        tree[-1] = normalized_x * std_style + mean_style
+
+        y = 0
+        for x, weight in zip(tree, self.weights):
+            y += weight(x).repeat(1, 1, int(self.nodes / weight(x).size(1))).view(batch_size, -1, self.out_features)
+
+        # Branching & K-support
+        if self.branching:
+            x = self.sigma(tree[-1].unsqueeze(2) @ self.branch).view(batch_size, -1, self.in_features)
+            x = self.support(x)
+            y = x + torch.Tensor(y).repeat(1, 1, self.degree).view(batch_size, -1, self.out_features)
+        else:
+            x = self.support(tree[-1])
+            y = x + y
+
+        #  Combine elements
+        if self.activation:
+            y = self.sigma(y + self.bias.repeat(1, self.nodes, 1))
+
+        tree.append(y)
+
+        return tree
+
+
+class PTBlockAdaINAfter(torch.nn.Module):
+
+    def __init__(self, features: list[int], nodes: int, depth: int, degrees: list[int], branching: bool,
+                 activation: bool):
+        self.in_features = features[depth]
+        self.out_features = features[depth + 1]
+        self.nodes = nodes
+        self.degree = degrees[depth]
+        self.activation = activation
+        self.branching = branching
+
+        super(PTBlockAdaINAfter, self).__init__()
 
         self.weights = torch.nn.ModuleList()
         for i in range(depth + 1):
@@ -118,23 +190,36 @@ class Generator(torch.nn.Module):
 
         self.mapping = torch.nn.ModuleList()
         self.synthesis = torch.nn.ModuleList()
-        degrees = [1, 2, 2, 2, 2, 2, 64]
+        degrees = [1, 1, 2, 2, 2, 2, 2, 64]
         layers_size = [4, 2, 1, 1, 1, 1, 1]
-        features = [96, 256, 256, 256, 128, 128, 128, 3]
-
-        assert len(degrees) == len(layers_size) == len(features) - 1
+        features = [96, 96, 256, 256, 256, 128, 128, 128, 3]
 
         nodes = 1
-        for depth in range(len(degrees)):
+        num_layers = 7
 
-            # Mapping
+        # If after == True
+        # for depth in range(num_layers):
+        #
+        #     # Mapping
+        #     self.mapping.append(MapBlock(features[1:], nodes, depth, degrees[1:], layers_size))
+        #
+        #     # Synthesis
+        #     if depth == num_layers - 1:
+        #         self.synthesis.append(PTBlockAdaINAfter(features[1:], nodes, depth, degrees[1:], True, False))
+        #     else:
+        #         self.synthesis.append(PTBlockAdaINAfter(features[1:], nodes, depth, degrees[1:], True, True))
+        #
+        #     nodes *= degrees[depth + 1]
+
+        # If after == false
+        for depth in range(num_layers):
             self.mapping.append(MapBlock(features, nodes, depth, degrees, layers_size))
 
-            # Synthesis
-            if depth == len(degrees) - 1:
-                self.synthesis.append(PTBlock(features, nodes, depth, degrees, True, False))
+            temp_nodes = nodes * degrees[depth]
+            if depth == num_layers - 1:
+                self.synthesis.append(PTBlockAdaINBefore(features[1:], temp_nodes, depth, degrees[1:], True, False))
             else:
-                self.synthesis.append(PTBlock(features, nodes, depth, degrees, True, True))
+                self.synthesis.append(PTBlockAdaINBefore(features[1:], temp_nodes, depth, degrees[1:], True, True))
 
             nodes *= degrees[depth]
 

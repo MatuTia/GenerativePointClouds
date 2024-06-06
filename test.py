@@ -30,7 +30,8 @@ class PlotUtils:
 if __name__ == '__main__':
 
     # with open('./model/SurfaceTraining/log.csv', 'r', newline='\n') as f:
-    with open('./model/ChairTraining/log.csv', 'r', newline='\n') as f:
+    # with open('./model/ChairTraining/log.csv', 'r', newline='\n') as f:
+    with open('./model/ChairTrainingAdaIN/log.csv', 'r', newline='\n') as f:
         lines = [float(line[:-1]) for line in f.readlines()[1:]]
 
     smaller = min(lines)
@@ -48,8 +49,17 @@ if __name__ == '__main__':
 
     gen = Generator().to(device)
 
-    # gen.load_state_dict(torch.load(f"model/SurfaceTraining/generator-{998}.pt"))
-    gen.load_state_dict(torch.load(f"model/ChairTraining/generator-{808}.pt"))
+    # AdaIn After TreeGCN
+    # model = torch.load(f"model/ChairTraining/generator-808.pt")
+    # model = torch.load(f"model/ChairTraining/checkpoint.pt")['generator']
+    # model = torch.load(f"model/SurfaceTraining/generator-998.pt")
+    # model = torch.load(f"model/SurfaceTraining/checkpoint.pt")['generator']
+
+    # AdaIN Before TreeGCN
+    model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
+    # model = torch.load(f"model/ChairTrainingAdaIN/checkpoint.pt")['generator']
+
+    gen.load_state_dict(model)
 
     # First approach
     # noise = torch.randn((10, 1, 96), device=device)
