@@ -18,9 +18,10 @@ if __name__ == '__main__':
     dir_name = os.path.dirname(__file__)
 
     device = 'cuda'
+    ada_in_after = False
 
     # Definition of GAN
-    gen = Generator().to(device)
+    gen = Generator(ada_in_after).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer

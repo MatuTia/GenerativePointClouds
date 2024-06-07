@@ -45,9 +45,7 @@ if __name__ == '__main__':
     torch.manual_seed(42)
     torch.set_default_dtype(torch.float32)
 
-    device = 'cuda'
-
-    gen = Generator().to(device)
+    device = 'cpu'
 
     # AdaIn After TreeGCN
     # model = torch.load(f"model/ChairTraining/generator-808.pt")
@@ -59,6 +57,9 @@ if __name__ == '__main__':
     model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
     # model = torch.load(f"model/ChairTrainingAdaIN/checkpoint.pt")['generator']
 
+    ada_in_after = False
+
+    gen = Generator(ada_in_after).to(device)
     gen.load_state_dict(model)
 
     # First approach

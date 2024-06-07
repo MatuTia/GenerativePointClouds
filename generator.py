@@ -1,3 +1,4 @@
+import sys
 from math import sqrt
 
 import torch
@@ -185,7 +186,7 @@ class PTBlockAdaINAfter(torch.nn.Module):
 
 class Generator(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, after: bool):
         super(Generator, self).__init__()
 
         self.mapping = torch.nn.ModuleList()
@@ -197,31 +198,25 @@ class Generator(torch.nn.Module):
         nodes = 1
         num_layers = 7
 
-        # If after == True
-        # for depth in range(num_layers):
-        #
-        #     # Mapping
-        #     self.mapping.append(MapBlock(features[1:], nodes, depth, degrees[1:], layers_size))
-        #
-        #     # Synthesis
-        #     if depth == num_layers - 1:
-        #         self.synthesis.append(PTBlockAdaINAfter(features[1:], nodes, depth, degrees[1:], True, False))
-        #     else:
-        #         self.synthesis.append(PTBlockAdaINAfter(features[1:], nodes, depth, degrees[1:], True, True))
-        #
-        #     nodes *= degrees[depth + 1]
+        # Switcher AdaIN function
+        start_index = 1 if after else 0
+        class_name = "PTBlockAdaINAfter" if after else "PTBlockAdaINBefore"
 
-        # If after == false
+        pt_block = getattr(sys.modules[__name__], class_name)
+
         for depth in range(num_layers):
-            self.mapping.append(MapBlock(features, nodes, depth, degrees, layers_size))
 
-            temp_nodes = nodes * degrees[depth]
+            # Mapping
+            self.mapping.append(MapBlock(features[start_index:], nodes, depth, degrees[start_index:], layers_size))
+
+            # Synthesis
+            pt_nodes = nodes if after else nodes * degrees[depth]
             if depth == num_layers - 1:
-                self.synthesis.append(PTBlockAdaINBefore(features[1:], temp_nodes, depth, degrees[1:], True, False))
+                self.synthesis.append(pt_block(features[1:], pt_nodes, depth, degrees[1:], True, False))
             else:
-                self.synthesis.append(PTBlockAdaINBefore(features[1:], temp_nodes, depth, degrees[1:], True, True))
+                self.synthesis.append(pt_block(features[1:], pt_nodes, depth, degrees[1:], True, True))
 
-            nodes *= degrees[depth]
+            nodes *= degrees[start_index + depth]
 
     def forward(self, z: torch.Tensor, x: list[torch.Tensor]) -> torch.Tensor:
         for mapping, synthesis in zip(self.mapping, self.synthesis):
