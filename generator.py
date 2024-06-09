@@ -152,6 +152,8 @@ class Generator(torch.nn.Module):
         layers_size = [4, 2, 1, 1, 1, 1, 1]
         features = [96, 96, 256, 256, 256, 128, 128, 128, 3]
 
+        self.truncation = 0.7
+
         nodes = 1
         num_layers = 7
 
@@ -177,5 +179,7 @@ class Generator(torch.nn.Module):
     def forward(self, z: torch.Tensor, x: list[torch.Tensor]) -> torch.Tensor:
         for mapping, synthesis in zip(self.mapping, self.synthesis):
             z = mapping(z)
-            x = synthesis(x, z)
+            avg = torch.mean(z, dim=0)
+            z_tilde = avg + self.truncation * (z - avg)
+            x = synthesis(x, z_tilde)
         return x[-1]
