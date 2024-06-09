@@ -1,4 +1,3 @@
-import sys
 from math import sqrt
 
 import torch
@@ -120,33 +119,25 @@ class MapBlock(torch.nn.Module):
         return x
 
 
-class PTBlockAdaINBefore(torch.nn.Module):
+class PTBlock(torch.nn.Module):
 
     def __init__(self, features: list[int], nodes: int, depth: int, degrees: list[int], branching: bool,
-                 activation: bool):
-        super(PTBlockAdaINBefore, self).__init__()
-
-        self.tree_gcn = TreeGCN(features, nodes, depth, degrees, branching, activation)
-        self.ada_in = AdaIN(1)
-
-    def forward(self, tree: list[torch.Tensor], style: torch.Tensor) -> list[torch.Tensor]:
-        tree[-1] = self.ada_in.forward(tree[-1], style)
-        tree = self.tree_gcn.forward(tree)
-        return tree
-
-
-class PTBlockAdaINAfter(torch.nn.Module):
-
-    def __init__(self, features: list[int], nodes: int, depth: int, degrees: list[int], branching: bool,
-                 activation: bool):
-        super(PTBlockAdaINAfter, self).__init__()
+                 activation: bool, after: bool):
+        super(PTBlock, self).__init__()
 
         self.ada_in = AdaIN(1)
         self.tree_gcn = TreeGCN(features, nodes, depth, degrees, branching, activation)
+        self.after = after
 
     def forward(self, tree: list[torch.Tensor], style: torch.Tensor) -> list[torch.Tensor]:
-        tree = self.tree_gcn.forward(tree)
-        tree[-1] = self.ada_in.forward(tree[-1], style)
+
+        if self.after:
+            tree = self.tree_gcn.forward(tree)
+            tree[-1] = self.ada_in.forward(tree[-1], style)
+        else:
+            tree[-1] = self.ada_in.forward(tree[-1], style)
+            tree = self.tree_gcn.forward(tree)
+
         return tree
 
 
@@ -166,9 +157,6 @@ class Generator(torch.nn.Module):
 
         # Switcher AdaIN function
         start_index = 1 if after else 0
-        class_name = "PTBlockAdaINAfter" if after else "PTBlockAdaINBefore"
-
-        pt_block = getattr(sys.modules[__name__], class_name)
 
         for depth in range(num_layers):
 
@@ -178,9 +166,11 @@ class Generator(torch.nn.Module):
             # Synthesis
             pt_nodes = nodes if after else nodes * degrees[depth]
             if depth == num_layers - 1:
-                self.synthesis.append(pt_block(features[1:], pt_nodes, depth, degrees[1:], True, False))
+                self.synthesis.append(
+                    PTBlock(features[1:], pt_nodes, depth, degrees[1:], True, False, after))
             else:
-                self.synthesis.append(pt_block(features[1:], pt_nodes, depth, degrees[1:], True, True))
+                self.synthesis.append(
+                    PTBlock(features[1:], pt_nodes, depth, degrees[1:], True, True, after))
 
             nodes *= degrees[start_index + depth]
 
