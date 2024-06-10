@@ -21,7 +21,7 @@ if __name__ == '__main__':
     ada_in_after = False
 
     # Definition of GAN
-    gen = Generator(ada_in_after).to(device)
+    gen = Generator(ada_in_after, device).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer

@@ -54,12 +54,14 @@ if __name__ == '__main__':
     # model = torch.load(f"model/SurfaceTraining/checkpoint.pt")['generator']
 
     # AdaIN Before TreeGCN
-    model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
+    # model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
     # model = torch.load(f"model/ChairTrainingAdaIN/checkpoint.pt")['generator']
+    model = torch.load(f"model/ChairTrainingUpsample/generator-972.pt")
+    # model = torch.load(f"model/ChairTrainingUpsample/checkpoint.pt")['generator']
 
     ada_in_after = False
 
-    gen = Generator(ada_in_after).to(device)
+    gen = Generator(ada_in_after, device).to(device)
     gen.load_state_dict(model)
 
     # First approach
