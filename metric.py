@@ -1,11 +1,15 @@
 import warnings
 
 import numpy as np
+import torch
+from pytorch3d.loss import chamfer
 from scipy.spatial import distance
 from scipy.stats import entropy
 from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
 
 
+# JSD
 def unit_cube_grid_point_cloud(resolution, clip_sphere=False):
     """Returns the center coordinates of each cell of a 3D grid with resolution^3 cells,
     that is placed in the unit-cube.
@@ -68,8 +72,37 @@ def entropy_of_occupancy_grid(clouds, grid_resolution, in_sphere=False):
 
 
 def jensen_shannon_entropy(real_cloud, fake_clouds, in_sphere=False):
-
     _, pk = entropy_of_occupancy_grid(real_cloud, 28, in_sphere)
     _, qk = entropy_of_occupancy_grid(fake_clouds, 28, in_sphere)
 
     return distance.jensenshannon(pk, qk, base=2) ** 2
+
+
+# CD
+def scheduler_chamfer_distance(x, y, batch_size, device):
+    assert x.size(0) % batch_size == y.size(0) % batch_size == 0
+
+    result = torch.zeros(x.size(0), x.size(0))
+
+    for i in tqdm(range(x.size(0) // batch_size)):
+        x_batch = x[i * batch_size: (i + 1) * batch_size].to(device)
+
+        for j in range(y.size(0) // batch_size):
+            y_batch = y[j * batch_size: (j + 1) * batch_size].to(device)
+
+            out = chamfer_distance(x_batch, y_batch).cpu()
+
+            result[i * batch_size: (i + 1) * batch_size, j * batch_size: (j + 1) * batch_size] = out
+
+    return result
+
+
+def chamfer_distance(x, y):
+    assert x.size() == y.size()
+    batch_size = x.size(0)
+    x = x.repeat(1, x.size(0), 1).view(-1, x.size(1), x.size(2)).cuda()
+    y = y.repeat(y.size(0), 1, 1).cuda()
+    # The average get the result independent of the number of points
+    # We use it, although they define the function with sum
+    result = chamfer.chamfer_distance(x, y, batch_reduction=None, point_reduction="mean")[0]
+    return result.view(batch_size, batch_size)
