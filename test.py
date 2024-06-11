@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-from generator import Generator
+from generator import TreeGenerator
 
 
 class PlotUtils:
@@ -31,7 +31,8 @@ if __name__ == '__main__':
 
     # with open('./model/SurfaceTraining/log.csv', 'r', newline='\n') as f:
     # with open('./model/ChairTraining/log.csv', 'r', newline='\n') as f:
-    with open('./model/ChairTrainingAdaIN/log.csv', 'r', newline='\n') as f:
+    # with open('./model/ChairTrainingAdaIN/log.csv', 'r', newline='\n') as f:
+    with open('./model/ChairTrainingTreeGAN/log.csv', 'r', newline='\n') as f:
         lines = [float(line[:-1]) for line in f.readlines()[1:]]
 
     smaller = min(lines)
@@ -47,6 +48,11 @@ if __name__ == '__main__':
 
     device = 'cpu'
 
+    # TreeGAN
+    model = torch.load(f"model/ChairTrainingTreeGAN/generator-884.pt")
+
+    gen = TreeGenerator().to(device)
+
     # AdaIn After TreeGCN
     # model = torch.load(f"model/ChairTraining/generator-808.pt")
     # model = torch.load(f"model/ChairTraining/checkpoint.pt")['generator']
@@ -54,12 +60,12 @@ if __name__ == '__main__':
     # model = torch.load(f"model/SurfaceTraining/checkpoint.pt")['generator']
 
     # AdaIN Before TreeGCN
-    model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
+    # model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
     # model = torch.load(f"model/ChairTrainingAdaIN/checkpoint.pt")['generator']
 
-    ada_in_after = False
+    # ada_in_after = False
 
-    gen = Generator(ada_in_after).to(device)
+    # gen = Generator(ada_in_after).to(device)
     gen.load_state_dict(model)
 
     # First approach
@@ -72,11 +78,14 @@ if __name__ == '__main__':
     # style = torch.randn((10, 1, 96), device=device)
 
     # Fixing  style
-    noise = torch.randn((10, 1, 96), device=device)
-    style = torch.randn((1, 1, 96), device=device)
-    style = style.repeat(10, 1, 1)
+    # noise = torch.randn((10, 1, 96), device=device)
+    # style = torch.randn((1, 1, 96), device=device)
+    # style = style.repeat(10, 1, 1)
 
-    clouds = gen.forward(style, [noise]).cpu().detach().numpy()
+    # Only Noise
+    noise = torch.randn((10, 1, 96), device=device)
+
+    clouds = gen.forward([noise]).cpu().detach().numpy()
 
     for cloud in clouds:
         plot = PlotUtils("Chair")

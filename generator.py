@@ -141,10 +141,10 @@ class PTBlock(torch.nn.Module):
         return tree
 
 
-class Generator(torch.nn.Module):
+class StyleTreeGenerator(torch.nn.Module):
 
     def __init__(self, after: bool):
-        super(Generator, self).__init__()
+        super(StyleTreeGenerator, self).__init__()
 
         self.mapping = torch.nn.ModuleList()
         self.synthesis = torch.nn.ModuleList()
@@ -178,4 +178,31 @@ class Generator(torch.nn.Module):
         for mapping, synthesis in zip(self.mapping, self.synthesis):
             z = mapping(z)
             x = synthesis(x, z)
+        return x[-1]
+
+
+class TreeGenerator(torch.nn.Module):
+
+    def __init__(self):
+        super(TreeGenerator, self).__init__()
+        degrees = [2, 2, 2, 2, 2, 64]
+        features = [96, 64, 64, 64, 64, 64, 3]
+
+        self.synthesis = torch.nn.ModuleList()
+
+        nodes = 1
+        num_layers = 6
+
+        for depth in range(num_layers):
+
+            # TreeGAN layers
+            if depth == num_layers - 1:
+                self.synthesis.append(TreeGCN(features, nodes, depth, degrees, branching=True, activation=False))
+            else:
+                self.synthesis.append(TreeGCN(features, nodes, depth, degrees, branching=True, activation=True))
+            nodes *= degrees[depth]
+
+    def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
+        for synthesis in self.synthesis:
+            x = synthesis.forward(x)
         return x[-1]
