@@ -106,3 +106,14 @@ def chamfer_distance(x, y):
     # We use it, although they define the function with sum
     result = chamfer.chamfer_distance(x, y, batch_reduction=None, point_reduction="mean")[0]
     return result.view(batch_size, batch_size)
+
+
+def mmd_and_coverage(real, fake, batch_size, device):
+    matrix = scheduler_chamfer_distance(real, fake, batch_size, device)
+
+    # From real to fake
+    mmd, _ = matrix.min(dim=0)
+    # From fake to real
+    _, cov = matrix.min(dim=1)
+
+    return mmd.mean().item(), cov.unique().size(0)
