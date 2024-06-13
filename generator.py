@@ -85,15 +85,19 @@ class TreeGCN(torch.nn.Module):
 
 class MapBlock(torch.nn.Module):
 
-    def __init__(self, features: list[int], nodes: int, depth: int, degree: list[int], layers_size: list[int]):
+    def __init__(self, features: list[int], nodes: int | None, depth: int, degree: list[int], layers_size: list[int],
+                 branch: bool, device: str):
         super(MapBlock, self).__init__()
         self.in_features = features[depth]
         self.out_features = features[depth + 1]
         self.degree = degree[depth]
         self.layer_size = layers_size[depth]
         self.degree = degree[depth]
+        self.device = device
+        self.branch = branch
 
-        if self.degree > 1:
+        if branch and self.degree > 1:
+            assert nodes is not None
             self.branching = torch.nn.Parameter(torch.empty(nodes, self.in_features, self.in_features * self.degree))
             torch.nn.init.xavier_uniform_(self.branching.data, gain=torch.nn.init.calculate_gain('relu'))
 
@@ -109,8 +113,15 @@ class MapBlock(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.degree > 1:
-            batch_size, _, features = x.shape
-            x = (x.unsqueeze(2) @ self.branching).view(batch_size, -1, features)
+            if self.branch:
+                batch_size, _, features = x.shape
+                x = (x.unsqueeze(2) @ self.branching).view(batch_size, -1, features)
+            else:
+                radius = .2
+                batch_size, points, features = x.shape
+                rand = torch.rand(batch_size, points, features * (self.degree - 1), device=self.device) * radius
+                rand += x.repeat(1, 1, self.degree - 1) - radius / 2
+                x = torch.cat([x, rand], dim=2).reshape(batch_size, -1, features)
 
         for layer in self.layers:
             x = layer(x)
@@ -143,7 +154,7 @@ class PTBlock(torch.nn.Module):
 
 class StyleTreeGenerator(torch.nn.Module):
 
-    def __init__(self, after: bool):
+    def __init__(self, after: bool, mapping_branching: bool, device: str):
         super(StyleTreeGenerator, self).__init__()
 
         self.mapping = torch.nn.ModuleList()
@@ -161,7 +172,9 @@ class StyleTreeGenerator(torch.nn.Module):
         for depth in range(num_layers):
 
             # Mapping
-            self.mapping.append(MapBlock(features[start_index:], nodes, depth, degrees[start_index:], layers_size))
+            self.mapping.append(
+                MapBlock(features[start_index:], nodes, depth, degrees[start_index:], layers_size, mapping_branching,
+                         device))
 
             # Synthesis
             pt_nodes = nodes if after else nodes * degrees[depth]

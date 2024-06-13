@@ -8,7 +8,7 @@ from tqdm import tqdm
 import metric
 from data import CloudTensorDataset
 from discriminator import Discriminator
-from generator import TreeGenerator
+from generator import StyleTreeGenerator
 from loss import WassersteinGAN
 
 if __name__ == '__main__':
@@ -19,9 +19,10 @@ if __name__ == '__main__':
 
     device = 'cuda'
     ada_in_after = False
+    mapping_branching = False
 
     # Definition of GAN
-    gen = TreeGenerator().to(device)
+    gen = StyleTreeGenerator(ada_in_after, mapping_branching, device).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer
@@ -69,7 +70,8 @@ if __name__ == '__main__':
                 # Discriminator
                 dis_optim.zero_grad()
 
-                fake = gen.forward([torch.randn((batch_size, 1, 96), device=device)])
+                fake = gen.forward(torch.randn((batch_size, 1, 96), device=device),
+                                   [torch.randn((batch_size, 1, 96), device=device)])
 
                 batch_result = dis.forward(batch)
                 fake_result = dis.forward(fake)
@@ -81,7 +83,8 @@ if __name__ == '__main__':
             # Generator
             gen_optim.zero_grad()
 
-            fake = gen.forward([torch.randn((batch_size, 1, 96), device=device)])
+            fake = gen.forward(torch.randn((batch_size, 1, 96), device=device),
+                               [torch.randn((batch_size, 1, 96), device=device)])
             fake_result = dis.forward(fake)
 
             loss_gen = loss.generator(fake_result)
@@ -92,7 +95,8 @@ if __name__ == '__main__':
         # Metric
         fakes = []
         for i in range(len(dataset) // batch_size):
-            fakes.append(gen.forward([torch.randn((batch_size, 1, 96), device=device)]).detach().cpu())
+            fakes.append(gen.forward(torch.randn((batch_size, 1, 96), device=device),
+                                     [torch.randn((batch_size, 1, 96), device=device)]).detach().cpu())
 
         fakes = torch.cat(fakes, dim=0)
         real = next(iter(DataLoader(dataset, len(dataset), num_workers=2)))
