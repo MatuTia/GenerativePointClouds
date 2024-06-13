@@ -61,8 +61,9 @@ if __name__ == '__main__':
     # model = torch.load(f"model/ChairTrainingStyleTruncated/checkpoint.pt")['generator']
 
     ada_in_after = False
+    truncate_style = True
 
-    gen = Generator(ada_in_after).to(device)
+    gen = Generator(ada_in_after, truncate_style).to(device)
     gen.load_state_dict(model)
 
     # First approach

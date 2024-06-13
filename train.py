@@ -19,9 +19,10 @@ if __name__ == '__main__':
 
     device = 'cuda'
     ada_in_after = False
+    truncate_style = True
 
     # Definition of GAN
-    gen = Generator(ada_in_after).to(device)
+    gen = Generator(ada_in_after, truncate_style).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer
