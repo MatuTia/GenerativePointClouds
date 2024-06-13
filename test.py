@@ -33,7 +33,8 @@ if __name__ == '__main__':
     # with open('./model/ChairTraining/log.csv', 'r', newline='\n') as f:
     # with open('./model/ChairTrainingAdaIN/log.csv', 'r', newline='\n') as f:
     # with open('./model/ChairTrainingTreeGAN/log.csv', 'r', newline='\n') as f:
-    with open('./model/ChairTrainingUpsample/log.csv', 'r', newline='\n') as f:
+    # with open('./model/ChairTrainingUpsample/log.csv', 'r', newline='\n') as f:
+    with open('./model/ChairTrainingStyleTruncated/log.csv', 'r', newline='\n') as f:
         lines = [float(line[:-1]) for line in f.readlines()[1:]]
 
     smaller = min(lines)
@@ -62,14 +63,17 @@ if __name__ == '__main__':
     # AdaIN Before TreeGCN
     # model = torch.load(f"model/ChairTrainingAdaIN/generator-364.pt")
     # model = torch.load(f"model/ChairTrainingAdaIN/checkpoint.pt")['generator']
-    model = torch.load(f"model/ChairTrainingUpsample/generator-972.pt")
+    # model = torch.load(f"model/ChairTrainingUpsample/generator-972.pt")
     # model = torch.load(f"model/ChairTrainingUpsample/checkpoint.pt")['generator']
+    model = torch.load(f"model/ChairTrainingStyleTruncated/generator-499.pt")
+    # model = torch.load(f"model/ChairTrainingStyleTruncated/checkpoint.pt")['generator']
 
     ada_in_after = False
-    mapping_branching = False
+    mapping_branching = True
+    truncate_style = True
 
     # gen = TreeGenerator().to(device)
-    gen = StyleTreeGenerator(ada_in_after, mapping_branching, device).to(device)
+    gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, device).to(device)
     gen.load_state_dict(model)
 
     # First approach

@@ -154,7 +154,7 @@ class PTBlock(torch.nn.Module):
 
 class StyleTreeGenerator(torch.nn.Module):
 
-    def __init__(self, after: bool, mapping_branching: bool, device: str):
+    def __init__(self, after: bool, mapping_branching: bool, truncate_style: bool, device: str):
         super(StyleTreeGenerator, self).__init__()
 
         self.mapping = torch.nn.ModuleList()
@@ -162,6 +162,8 @@ class StyleTreeGenerator(torch.nn.Module):
         degrees = [1, 1, 2, 2, 2, 2, 2, 64]
         layers_size = [4, 2, 1, 1, 1, 1, 1]
         features = [96, 96, 256, 256, 256, 128, 128, 128, 3]
+
+        self.truncation = 0.7 if truncate_style else None
 
         nodes = 1
         num_layers = 7
@@ -190,7 +192,14 @@ class StyleTreeGenerator(torch.nn.Module):
     def forward(self, z: torch.Tensor, x: list[torch.Tensor]) -> torch.Tensor:
         for mapping, synthesis in zip(self.mapping, self.synthesis):
             z = mapping(z)
-            x = synthesis(x, z)
+
+            if self.truncation:
+                avg = torch.mean(z, dim=0)
+                z_tilde = avg + self.truncation * (z - avg)
+            else:
+                z_tilde = z
+
+            x = synthesis(x, z_tilde)
         return x[-1]
 
 

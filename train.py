@@ -19,10 +19,11 @@ if __name__ == '__main__':
 
     device = 'cuda'
     ada_in_after = False
-    mapping_branching = False
+    mapping_branching = True
+    truncate_style = True
 
     # Definition of GAN
-    gen = StyleTreeGenerator(ada_in_after, mapping_branching, device).to(device)
+    gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, device).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer
