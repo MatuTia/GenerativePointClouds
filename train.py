@@ -19,9 +19,10 @@ if __name__ == '__main__':
 
     device = 'cuda'
     ada_in_after = False
+    mapping_branching = False
 
     # Definition of GAN
-    gen = Generator(ada_in_after, device).to(device)
+    gen = Generator(ada_in_after, mapping_branching, device).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer

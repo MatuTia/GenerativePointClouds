@@ -60,8 +60,9 @@ if __name__ == '__main__':
     # model = torch.load(f"model/ChairTrainingUpsample/checkpoint.pt")['generator']
 
     ada_in_after = False
+    mapping_branching = False
 
-    gen = Generator(ada_in_after, device).to(device)
+    gen = Generator(ada_in_after, mapping_branching, device).to(device)
     gen.load_state_dict(model)
 
     # First approach
