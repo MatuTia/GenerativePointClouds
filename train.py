@@ -16,6 +16,7 @@ if __name__ == '__main__':
     torch.manual_seed(42)
     torch.set_default_dtype(torch.float32)
     dir_name = os.path.dirname(__file__)
+    output_dir = 'model'
 
     device = 'cuda'
     ada_in_after = False
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     iteration = 5
 
     # Metrics Log
-    log = open(os.path.join(dir_name, 'model', 'log.csv'), "w")
+    log = open(os.path.join(dir_name, output_dir, 'log.csv'), "w")
     log.write("JSD\n")
     log.flush()
 
@@ -105,21 +106,21 @@ if __name__ == '__main__':
         log.write(f"{jsd:.4f}\n")
         log.flush()
 
-        # Save the best model each 50 epochs
+        # Save the best model each 100 epochs
         if jsd < best_jsd:
             best_jsd = jsd
             best_gen_epoch = epoch
             best_gen_state = deepcopy(gen.state_dict())
 
         if epoch % 100 == 0:
-            torch.save(best_gen_state, os.path.join(dir_name, 'model', f'generator-{best_gen_epoch}.pt'))
+            torch.save(best_gen_state, os.path.join(dir_name, output_dir, f'generator-{best_gen_epoch}.pt'))
 
     # Checkpoint to resume training
-    torch.save(best_gen_state, os.path.join(dir_name, 'model', f'generator-{best_gen_epoch}.pt'))
+    torch.save(best_gen_state, os.path.join(dir_name, output_dir, f'generator-{best_gen_epoch}.pt'))
 
     torch.save({'epoch': epochs,
                 'generator': gen.state_dict(),
                 'discriminator': dis.state_dict(),
                 'generator_optimizer': gen_optim.state_dict(),
                 'discriminator_optimizer': dis_optim.state_dict()},
-               os.path.join(dir_name, 'model', 'checkpoint.pt'))
+               os.path.join(dir_name, output_dir, 'checkpoint.pt'))
