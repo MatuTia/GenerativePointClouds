@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import torch
 from pytorch3d.loss import chamfer
@@ -38,13 +36,13 @@ def entropy_of_occupancy_grid(clouds, grid_resolution, in_sphere=False):
         clouds: (numpy array) #point-clouds x points per point-cloud x 3
         grid_resolution (int) size of occupancy grid that will be used.
     """
-    epsilon = 10e-4
-    bound = 0.5 + epsilon
-    if abs(np.max(clouds)) > bound or abs(np.min(clouds)) > bound:
-        warnings.warn('Point-clouds are not in unit cube.')
-
-    if in_sphere and np.max(np.sqrt(np.sum(clouds ** 2, axis=2))) > bound:
-        warnings.warn('Point-clouds are not in unit sphere.')
+    # epsilon = 10e-4
+    # bound = 0.5 + epsilon
+    # if abs(np.max(clouds)) > bound or abs(np.min(clouds)) > bound:
+    #     warnings.warn('Point-clouds are not in unit cube.')
+    #
+    # if in_sphere and np.max(np.sqrt(np.sum(clouds ** 2, axis=2))) > bound:
+    #     warnings.warn('Point-clouds are not in unit sphere.')
 
     grid_coordinates, _ = unit_cube_grid_point_cloud(grid_resolution, in_sphere)
     grid_coordinates = grid_coordinates.reshape(-1, 3)
@@ -79,12 +77,15 @@ def jensen_shannon_entropy(real_cloud, fake_clouds, in_sphere=False):
 
 
 # CD
-def scheduler_chamfer_distance(x, y, batch_size, device):
+def scheduler_chamfer_distance(x, y, batch_size, device, verbose):
     assert x.size(0) % batch_size == y.size(0) % batch_size == 0
 
     result = torch.zeros(x.size(0), x.size(0))
 
-    for i in tqdm(range(x.size(0) // batch_size)):
+    iteration = range(x.size(0) // batch_size)
+    iteration = tqdm(iteration) if verbose else iteration
+
+    for i in iteration:
         x_batch = x[i * batch_size: (i + 1) * batch_size].to(device)
 
         for j in range(y.size(0) // batch_size):
@@ -108,8 +109,8 @@ def chamfer_distance(x, y):
     return result.view(batch_size, batch_size)
 
 
-def mmd_and_coverage(real, fake, batch_size, device):
-    matrix = scheduler_chamfer_distance(real, fake, batch_size, device)
+def mmd_and_coverage(real, fake, batch_size, device, verbose):
+    matrix = scheduler_chamfer_distance(real, fake, batch_size, device, verbose)
 
     # From real to fake
     mmd, _ = matrix.min(dim=0)

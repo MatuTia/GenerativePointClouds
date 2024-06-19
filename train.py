@@ -1,3 +1,4 @@
+import math
 import os.path
 from copy import deepcopy
 
@@ -18,10 +19,15 @@ if __name__ == '__main__':
     dir_name = os.path.dirname(__file__)
     output_dir = 'model'
 
+    os.makedirs(os.path.join(dir_name, output_dir))
+    os.makedirs(os.path.join(dir_name, output_dir, 'loss'))
+    os.makedirs(os.path.join(dir_name, output_dir, 'jsd'))
+    os.makedirs(os.path.join(dir_name, output_dir, 'mmd'))
+
     device = 'cuda'
     ada_in_after = False
-    mapping_branching = True
-    truncate_style = True
+    mapping_branching = False
+    truncate_style = False
 
     # Definition of GAN
     gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, device).to(device)
@@ -34,7 +40,7 @@ if __name__ == '__main__':
     # Dataset and DataLoader
     # We assume dataset store in cpu, maybe we can consider to store in on gpu ram
     batch_size = 10
-    dataset = CloudTensorDataset(os.path.join(dir_name, 'dataset', 'chair.pt'))
+    dataset = CloudTensorDataset(os.path.join(dir_name, 'dataset', 'surface-no-rotated.pt'))
 
     if device == 'cuda':
         loader = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True, num_workers=2, pin_memory=True,
@@ -51,18 +57,31 @@ if __name__ == '__main__':
 
     # Metrics Log
     log = open(os.path.join(dir_name, output_dir, 'log.csv'), "w")
-    log.write("JSD\n")
+    log.write("Loss, MMD, JSD\n")
     log.flush()
 
     gen.train()
     dis.train()
 
     # To save metrics
-    best_jsd = 1
-    best_gen_epoch = 0
-    best_gen_state = None
+    # loss
+    best_loss = math.inf
+    best_epoch_loss = 0
+    best_state_loss = None
+
+    # jsd
+    best_jsd = math.inf
+    best_epoch_jsd = 0
+    best_state_jsd = None
+
+    # mmd
+    best_mmd = math.inf
+    best_epoch_mmd = 0
+    best_state_mmd = None
 
     for epoch in tqdm(range(1, epochs + 1)):
+
+        epoch_loss = 0
 
         for batch in loader:
 
@@ -78,6 +97,9 @@ if __name__ == '__main__':
                 batch_result = dis.forward(batch)
                 fake_result = dis.forward(fake)
                 loss_dis = loss.discriminator(dis, batch, fake, batch_result, fake_result)
+
+                epoch_loss += abs(loss_dis.item())
+
                 loss_dis.backward()
 
                 dis_optim.step()
@@ -94,30 +116,47 @@ if __name__ == '__main__':
 
             gen_optim.step()
 
-        # Metric
-        fakes = []
-        for i in range(len(dataset) // batch_size):
-            fakes.append(gen.forward(torch.randn((batch_size, 1, 96), device=device),
-                                     [torch.randn((batch_size, 1, 96), device=device)]).detach().cpu())
+        # Validation
+        fakes = torch.Tensor()
 
-        fakes = torch.cat(fakes, dim=0)
+        noises = torch.load(os.path.join(dir_name, 'dataset', 'noise.pt'))
+        styles = torch.load(os.path.join(dir_name, 'dataset', 'style.pt'))
+
+        for noise, style in zip(noises, styles):
+            fakes = torch.cat((fakes, gen.forward(style, [noise.to(device)]).detach().cpu()), dim=0)
+        del noises, styles
+
         real = next(iter(DataLoader(dataset, len(dataset), num_workers=2)))
+
+        epoch_loss = epoch_loss / (iteration * (len(dataset) // batch_size))
+        mmd, _ = metric.mmd_and_coverage(real, fakes, 100, 'cuda', False)
         jsd = metric.jensen_shannon_entropy(real.numpy(), fakes.numpy(), False)
-        log.write(f"{jsd:.4f}\n")
+
+        log.write(f"{epoch_loss:.8f}, {mmd:.8f}, {jsd:.8f}\n")
         log.flush()
 
-        # Save the best model each 100 epochs
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            best_epoch_loss = epoch
+            best_state_loss = deepcopy(gen.state_dict())
+
+        if mmd < best_mmd:
+            best_mmd = mmd
+            best_epoch_mmd = epoch
+            best_state_mmd = deepcopy(gen.state_dict())
+
         if jsd < best_jsd:
             best_jsd = jsd
-            best_gen_epoch = epoch
-            best_gen_state = deepcopy(gen.state_dict())
+            best_epoch_jsd = epoch
+            best_state_jsd = deepcopy(gen.state_dict())
 
+        # Save the best model each 100 epochs
         if epoch % 100 == 0:
-            torch.save(best_gen_state, os.path.join(dir_name, output_dir, f'generator-{best_gen_epoch}.pt'))
+            torch.save(best_state_loss, os.path.join(dir_name, output_dir, 'loss', f'generator-{best_epoch_loss}.pt'))
+            torch.save(best_state_mmd, os.path.join(dir_name, output_dir, 'mmd', f'generator-{best_epoch_mmd}.pt'))
+            torch.save(best_state_jsd, os.path.join(dir_name, output_dir, 'jsd', f'generator-{best_epoch_jsd}.pt'))
 
     # Checkpoint to resume training
-    torch.save(best_gen_state, os.path.join(dir_name, output_dir, f'generator-{best_gen_epoch}.pt'))
-
     torch.save({'epoch': epochs,
                 'generator': gen.state_dict(),
                 'discriminator': dis.state_dict(),
