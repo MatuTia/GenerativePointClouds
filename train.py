@@ -28,9 +28,10 @@ if __name__ == '__main__':
     ada_in_after = False
     mapping_branching = False
     truncate_style = False
+    alternative_degrees = False
 
     # Definition of GAN
-    gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, device).to(device)
+    gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, alternative_degrees, device).to(device)
     dis = Discriminator().to(device)
 
     #  Optimizer

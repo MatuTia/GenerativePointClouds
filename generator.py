@@ -154,12 +154,13 @@ class PTBlock(torch.nn.Module):
 
 class StyleTreeGenerator(torch.nn.Module):
 
-    def __init__(self, after: bool, mapping_branching: bool, truncate_style: bool, device: str):
+    def __init__(self, after: bool, mapping_branching: bool, truncate_style: bool, alternative_degrees: bool,
+                 device: str):
         super(StyleTreeGenerator, self).__init__()
 
         self.mapping = torch.nn.ModuleList()
         self.synthesis = torch.nn.ModuleList()
-        degrees = [1, 1, 2, 2, 2, 2, 2, 64]
+        degrees = [1, 1, 2, 2, 2, 2, 4, 32] if alternative_degrees else [1, 1, 2, 2, 2, 2, 2, 64]
         layers_size = [4, 2, 1, 1, 1, 1, 1]
         features = [96, 96, 256, 256, 256, 128, 128, 128, 3]
 
@@ -205,9 +206,9 @@ class StyleTreeGenerator(torch.nn.Module):
 
 class TreeGenerator(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, alternative_degrees: bool):
         super(TreeGenerator, self).__init__()
-        degrees = [2, 2, 2, 2, 2, 64]
+        degrees = [2, 2, 2, 2, 4, 32] if alternative_degrees else [2, 2, 2, 2, 2, 64]
         features = [96, 64, 64, 64, 64, 64, 3]
 
         self.synthesis = torch.nn.ModuleList()
