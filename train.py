@@ -120,8 +120,8 @@ if __name__ == '__main__':
         # Validation
         fakes = torch.Tensor()
 
-        noises = torch.load(os.path.join(dir_name, 'dataset', 'noise.pt'))
-        styles = torch.load(os.path.join(dir_name, 'dataset', 'style.pt'))
+        noises = torch.load(os.path.join(dir_name, 'dataset', 'validation', 'noise.pt')).reshape(-1, 10, 1, 96)
+        styles = torch.load(os.path.join(dir_name, 'dataset', 'validation', 'style.pt')).reshape(-1, 10, 1, 96)
 
         for noise, style in zip(noises, styles):
             fakes = torch.cat((fakes, gen.forward(style, [noise.to(device)]).detach().cpu()), dim=0)
