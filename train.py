@@ -124,7 +124,7 @@ if __name__ == '__main__':
         styles = torch.load(os.path.join(dir_name, 'dataset', 'validation', 'style.pt')).reshape(-1, 10, 1, 96)
 
         for noise, style in zip(noises, styles):
-            fakes = torch.cat((fakes, gen.forward(style, [noise.to(device)]).detach().cpu()), dim=0)
+            fakes = torch.cat((fakes, gen.forward(style.to(device), [noise.to(device)]).detach().cpu()), dim=0)
         del noises, styles
 
         real = next(iter(DataLoader(dataset, len(dataset), num_workers=2)))
