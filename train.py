@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 import metric
 from data import CloudTensorDataset
-from discriminator import Discriminator
+from discriminator import DynamicEdgeDiscriminator
 from generator import StyleTreeGenerator
 from loss import WassersteinGAN
 
@@ -24,7 +24,12 @@ if __name__ == '__main__':
     os.makedirs(os.path.join(dir_name, output_dir, 'jsd'))
     os.makedirs(os.path.join(dir_name, output_dir, 'mmd'))
 
+    # Setting
     device = 'cuda'
+    batch_size = 10
+    epochs = 100
+    iteration = 5
+
     ada_in_after = False
     mapping_branching = False
     truncate_style = False
@@ -32,7 +37,7 @@ if __name__ == '__main__':
 
     # Definition of GAN
     gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, alternative_degrees, device).to(device)
-    dis = Discriminator().to(device)
+    dis = DynamicEdgeDiscriminator(batch_size, device).to(device)
 
     #  Optimizer
     gen_optim = torch.optim.Adam(gen.parameters(), lr=0.0001, betas=(0, 0.99))
@@ -40,7 +45,6 @@ if __name__ == '__main__':
 
     # Dataset and DataLoader
     # We assume dataset store in cpu, maybe we can consider to store in on gpu ram
-    batch_size = 10
     dataset = CloudTensorDataset(os.path.join(dir_name, 'dataset', 'surface-no-rotated.pt'))
 
     if device == 'cuda':
@@ -51,10 +55,6 @@ if __name__ == '__main__':
 
     # Loss
     loss = WassersteinGAN(batch_size, device)
-
-    # Setting training
-    epochs = 1000
-    iteration = 5
 
     # Metrics Log
     log = open(os.path.join(dir_name, output_dir, 'log.csv'), "w")
@@ -98,12 +98,14 @@ if __name__ == '__main__':
                 batch_result = dis.forward(batch)
                 fake_result = dis.forward(fake)
                 loss_dis = loss.discriminator(dis, batch, fake, batch_result, fake_result)
+                del fake
 
                 epoch_loss += abs(loss_dis.item())
 
                 loss_dis.backward()
 
                 dis_optim.step()
+            del batch
 
             # Generator
             gen_optim.zero_grad()
@@ -111,6 +113,7 @@ if __name__ == '__main__':
             fake = gen.forward(torch.randn((batch_size, 1, 96), device=device),
                                [torch.randn((batch_size, 1, 96), device=device)])
             fake_result = dis.forward(fake)
+            del fake
 
             loss_gen = loss.generator(fake_result)
             loss_gen.backward()
@@ -132,6 +135,7 @@ if __name__ == '__main__':
         epoch_loss = epoch_loss / (iteration * (len(dataset) // batch_size))
         mmd, _ = metric.mmd_and_coverage(real, fakes, 100, 'cuda', False)
         jsd = metric.jensen_shannon_entropy(real.numpy(), fakes.numpy(), False)
+        del fakes, real
 
         log.write(f"{epoch_loss:.8f}, {mmd:.8f}, {jsd:.8f}\n")
         log.flush()

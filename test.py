@@ -34,13 +34,14 @@ if __name__ == '__main__':
     torch.set_default_dtype(torch.float32)
 
     # Training-Name
-    name = 'StyleTreeGAN'
+    data_type = "Surface"
+    name = 'StyleGAN'
     degree = 64
     epoch = 971
     dir_name = "mmd"
 
     metrics = np.empty((1000, 3))
-    with open(f'model/Surface{name}-{degree}/log.csv', 'r', newline='\n') as f:
+    with open(f'model/{data_type}-{name}-{degree}/log.csv', 'r', newline='\n') as f:
         for i, line in enumerate(f.readlines()[1:]):
             line = line[:-1].split(",")
             metrics[i, :] = line
@@ -59,13 +60,13 @@ if __name__ == '__main__':
 
     device = 'cpu'
 
-    model = torch.load(f'model/Surface{name}-{degree}/{dir_name}/generator-{epoch}.pt')
+    model = torch.load(f'model/{data_type}-{name}-{degree}/{dir_name}/generator-{epoch}.pt')
 
     ada_in_after = False
     mapping_branching = False
     truncate_style = False
 
-    # gen = TreeGenerator(alternative_degrees).to(device)
+    # gen = TreeGenerator(degree == 32).to(device)
     gen = StyleTreeGenerator(ada_in_after, mapping_branching, truncate_style, degree == 32, device).to(device)
     gen.load_state_dict(model)
 
