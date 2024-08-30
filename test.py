@@ -35,10 +35,10 @@ if __name__ == '__main__':
 
     # Training-Name
     data_type = "Surface"
-    name = 'StyleGAN'
+    name = 'Dynamic-3-StyleGAN'
     degree = 64
-    epoch = 971
-    dir_name = "mmd"
+    epoch = 100
+    dir_name = "generator"
 
     metrics = np.empty((1000, 3))
     with open(f'model/{data_type}-{name}-{degree}/log.csv', 'r', newline='\n') as f:
