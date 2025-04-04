@@ -33,11 +33,7 @@ class PlotUtils:
         plt.show()
 
 
-def compute_boundary_interior_points(cloud: np.ndarray, down_sampling: bool) -> [np.ndarray, np.ndarray]:
-    if down_sampling:
-        cloud = PointCloud(cloud)
-        cloud = cloud.voxel_down_sample(voxel_size=0.02)
-        cloud = cloud.point.positions
+def compute_boundary_interior_points(cloud: np.ndarray) -> [np.ndarray, np.ndarray]:
 
     cloud = PointCloud(cloud)
     cloud.estimate_normals(radius=0.2)
@@ -214,8 +210,7 @@ def rotation(clouds: np.ndarray) -> np.ndarray:
 
 
 def post_process(cloud: np.ndarray, plotting: bool) -> np.ndarray:
-    down_sampling = True
-    boundary, interior = compute_boundary_interior_points(cloud, down_sampling)
+    boundary, interior = compute_boundary_interior_points(cloud)
 
     perimeter = compute_perimeter(boundary)
 
@@ -362,13 +357,14 @@ if __name__ == '__main__':
         mapping_branching = False
         truncate_style = False
         alternative_degrees = False
+        name = 'Surface-Dynamic-3-StyleGAN-64'
 
-        model_name = os.path.join(dir_name, 'model', 'SurfaceStyleTreeGAN-64', 'mmd', 'generator-971.pt')
+        model_name = os.path.join(dir_name, 'model', name, 'generator', 'generator-500.pt')
 
         # Generation Setting
-        num_cloud = 100_000
+        num_cloud = 100
         batch_size = 10
 
-        os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
     main()

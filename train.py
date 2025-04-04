@@ -15,15 +15,15 @@ torch.manual_seed(42)
 torch.set_default_dtype(torch.float32)
 dir_name = os.path.dirname(__file__)
 
-model_name = 'Surface-Dynamic-3-StyleGAN-64-continue'
-model_to_train = 'model/Surface-Dynamic-3-StyleGAN-64'
+model_name = 'Surface-Dynamic-3-StyleGAN-64'
+model_to_train = ''
 
 if __name__ == '__main__':
 
     # Setting
     device = 'cuda'
     batch_size = 10
-    epochs = 300
+    epochs = 500
     iteration = 3
 
     ada_in_after = False
@@ -39,11 +39,8 @@ if __name__ == '__main__':
     gen_optim = torch.optim.Adam(gen.parameters(), lr=0.0001, betas=(0, 0.99))
     dis_optim = torch.optim.Adam(dis.parameters(), lr=0.0001, betas=(0, 0.99))
 
-    if model_to_train is None:
+    if len(model_to_train.strip()) == 0:
         os.makedirs(os.path.join(dir_name, model_name))
-        os.makedirs(os.path.join(dir_name, model_name, 'loss'))
-        os.makedirs(os.path.join(dir_name, model_name, 'jsd'))
-        os.makedirs(os.path.join(dir_name, model_name, 'mmd'))
         os.makedirs(os.path.join(dir_name, model_name, 'generator'))
 
         starting_epoch = 1
@@ -143,7 +140,7 @@ if __name__ == '__main__':
 
         # Save the best model each 100 epochs
         if epoch % 100 == 0:
-            torch.save(gen.state_dict(), os.path.join(dir_name, model_name, f'generator-{epoch}.pt'))
+            torch.save(gen.state_dict(), os.path.join(dir_name, model_name, 'generator', f'generator-{epoch}.pt'))
 
     # Checkpoint to resume training
     torch.save({'epoch': epochs,
