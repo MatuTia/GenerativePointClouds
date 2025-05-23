@@ -7,7 +7,7 @@ discriminator based on dynamic graph convolutional networks that does not requir
 connectivity.
 
 [1] Carlotta Giannelli, Sofia Imperatore, Mattia Matucci, Matteo Paiano. 3D point cloud generation for surface
-representation. 2025
+representation. In Scientific Machine Learning Emerging Topics 2024 special volume in the SEMA-SIMAI series.
 
 This repository contains the code and the data set used for training and testing in that publication.
 
